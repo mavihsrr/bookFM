@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BookFM Times &mdash; Reading Room</title>
+    <meta name="description" content="Compose your reading session. Upload or paste text, set your pace, and open the ambient reading room." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400;1,600&family=Special+Elite&family=Roboto+Condensed:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="room">
+    <div class="paper-shell room-paper">
+
+      <!-- ── Header ─────────────────────────────────────── -->
+      <header class="paper-header">
+        <div class="edition-bar">
+          <span>BookFM Archive</span>
+          <span>Reading Room Desk</span>
+          <span>Vol. I &mdash; No. 01</span>
+        </div>
+        <div class="masthead-row">
+          <p class="masthead-date">Compose Edition</p>
+          <a id="brand-home" class="masthead-title" href="/">BOOKFM TIMES</a>
+          <p class="masthead-price">Reader&rsquo;s Desk</p>
+        </div>
+        <div class="section-bar">
+          <a class="section-link" href="/">Front Page</a>
+          <a class="section-link section-link-strong" href="#compose">Compose</a>
+          <button class="dark-toggle section-link" id="dark-mode-toggle" type="button" aria-label="Toggle dark mode">
+            <span class="toggle-icon">◐</span> Dark Mode
+          </button>
+        </div>
+      </header>
+
+      <!-- ── Main ───────────────────────────────────────── -->
+      <main class="room-main">
+
+        <!-- COMPOSE SECTION -->
+        <section id="compose" class="compose-stage">
+
+          <div class="compose-header">
+            <span class="kicker">Reading Room</span>
+            <h1 class="compose-title">Start your reading session.</h1>
+            <p class="compose-sub">
+              Upload a text file or paste directly. Set your pace &mdash; ambient music streams live to match.
+            </p>
+          </div>
+
+          <form id="compose-form">
+
+            <!-- Input panels: Upload OR Paste -->
+            <div class="input-panels">
+
+              <!-- Upload panel -->
+              <label class="input-panel upload-panel" for="file-input" id="upload-panel">
+                <span class="panel-icon">⬆</span>
+                <p class="panel-title">Upload File</p>
+                <p class="panel-sub">.txt &nbsp;or&nbsp; .md</p>
+                <div class="upload-drop">
+                  <span id="file-summary" class="panel-filename">No file selected</span>
+                </div>
+                <input id="file-input" name="file" type="file" accept=".txt,.md" />
+              </label>
+
+              <!-- OR divider -->
+              <div class="choice-or" aria-hidden="true">
+                <span>or</span>
+              </div>
+
+              <!-- Paste panel -->
+              <div class="input-panel paste-panel" id="paste-panel">
+                <p class="panel-title">Paste Text</p>
+                <p class="panel-sub">Chapter, essay, or draft</p>
+                <textarea
+                  id="text-input"
+                  name="text"
+                  class="panel-textarea"
+                  placeholder="Paste a chapter, essay, scene, or article&hellip;"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Reading speed -->
+            <div class="speed-control">
+              <div class="speed-header">
+                <span class="speed-label">Reading Speed</span>
+                <span id="reading-speed-value" class="speed-display">220 <small>WPM</small></span>
+              </div>
+              <div class="speed-track">
+                <input
+                  id="reading-speed"
+                  name="reading_speed_wpm"
+                  type="range"
+                  min="120" max="320" step="5" value="220"
+                />
+                <div class="speed-marks">
+                  <span>Slow &mdash; 120</span>
+                  <span>Average &mdash; 220</span>
+                  <span>Fast &mdash; 320</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="compose-actions">
+              <button id="begin-reading" class="submit-btn" type="submit">
+                Open Reading Room
+                <span class="submit-arrow">&#8594;</span>
+              </button>
+              <p id="compose-note" class="compose-note">&nbsp;</p>
+            </div>
+
+          </form>
+        </section>
+
+        <!-- READER SECTION -->
+        <section id="reader-view" class="reader-view hidden">
+
+          <!-- Progress bar (fixed, shown in reading mode) -->
+          <div class="reading-progress-bar" id="reading-progress-bar" aria-hidden="true">
+            <div class="reading-progress-fill" id="reading-progress-fill"></div>
+          </div>
+
+          <!-- Article masthead — large newspaper-style title -->
+          <div class="reading-masthead" id="reading-masthead">
+            <span class="kicker" id="reading-kicker">Now Reading</span>
+            <h2 class="reading-display-title" id="reading-display-title">Reading session</h2>
+            <div class="reading-byline">
+              <span id="reading-display-wpm">220 WPM</span>
+              <span class="reading-byline-dot">&#9632;</span>
+              <span id="reading-pg-counter" class="reading-pg-counter">— paragraphs</span>
+              <span class="reading-byline-dot">&#9632;</span>
+              <span>Ambient stream active</span>
+            </div>
+          </div>
+
+          <!-- Article body -->
+          <div class="reader-paper-full">
+            <article id="reader-article" class="reader-article"></article>
+          </div>
+        </section>
+
+
+      </main>
+
+      <footer class="paper-footer">
+        <div class="footer-row">
+          <p>Reading Room Desk</p>
+          <p>BookFM Times</p>
+          <p>Edition 01</p>
+        </div>
+      </footer>
+
+      <!-- ── Loading overlay ────────────────────────────── -->
+      <div id="loading-screen" class="loading-screen hidden" aria-live="polite">
+        <div class="loading-card">
+          <span class="kicker">Opening Desk</span>
+          <div class="mono-bars loading-wave" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <h3>Setting the page &amp; warming the stream.</h3>
+          <p id="loading-text">Buffering the first section&hellip;</p>
+        </div>
+      </div>
+
+      <!-- ── Reader topbar (shown only in reading mode) ── -->
+      <div class="reader-topbar" role="toolbar" aria-label="Reading controls">
+        <button id="back-button" class="reader-back" type="button">
+          &#8592; Compose
+        </button>
+        <div class="reader-topbar-copy">
+          <span class="kicker">Now Reading</span>
+          <h2 id="reader-title">Reading session</h2>
+        </div>
+        <div class="reader-controls">
+          <p id="reader-meta" class="reader-meta">220 WPM</p>
+          <button id="reader-mode-toggle" class="reader-mode-toggle" type="button">
+            Follow Pace: ON
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Music rail ─────────────────────────────────── -->
+      <div id="music-rail" class="music-rail hidden" role="status">
+        <div class="rail-left">
+          <button id="play-pause-btn" class="rail-play-btn" type="button" aria-label="Pause music">
+            <!-- Pause icon (shown when playing) -->
+            <svg id="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="5" y="3" width="4" height="18" rx="1"/>
+              <rect x="15" y="3" width="4" height="18" rx="1"/>
+            </svg>
+            <!-- Play icon (shown when paused) -->
+            <svg id="icon-play" viewBox="0 0 24 24" aria-hidden="true" style="display:none">
+              <path d="M6 3l15 9-15 9V3z"/>
+            </svg>
+          </button>
+          <div class="ambient-copy">
+            <span class="ambient-label">Ambient stream</span>
+            <strong id="music-title">Reading session</strong>
+            <span id="music-status">Waiting to begin</span>
+          </div>
+        </div>
+        <div class="mono-bars music-wave" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+
+    </div><!-- /paper-shell -->
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/ScrollTrigger.min.js"></script>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

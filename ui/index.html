@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BookFM Times — Ambient Reading Sessions</title>
+    <meta name="description" content="Paste or upload text. Read with a line guide and a live ambient music stream generated to match your words." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400;1,600&family=Special+Elite&family=Roboto+Condensed:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-page="home">
+    <div class="paper-shell">
+      <header class="paper-header">
+        <div class="edition-bar">
+          <span>BookFM Archive</span>
+          <span>Special Reading Edition</span>
+          <span>Vol. I &mdash; No. 01</span>
+        </div>
+
+        <div class="masthead-row">
+          <p class="masthead-date">Sunday Morning Edition</p>
+          <a class="masthead-title" href="/">BOOKFM TIMES</a>
+          <p class="masthead-price">Reader&rsquo;s Desk</p>
+        </div>
+
+        <div class="section-bar">
+          <button class="section-link" data-jump="how-it-works" type="button">How It Works</button>
+          <a class="section-link section-link-strong" href="/room">Open Reading Room</a>
+          <button class="dark-toggle section-link" id="dark-mode-toggle" type="button" aria-label="Toggle dark mode">
+            <span class="toggle-icon">◐</span> Dark Mode
+          </button>
+        </div>
+      </header>
+
+      <main class="home-main">
+        <!-- Lead Section -->
+        <section class="lead-layout">
+          <article class="lead-story">
+            <span class="kicker">Front Page</span>
+            <h1 class="lead-headline">Text in. Music out. Read with it.</h1>
+            <p class="standfirst">
+              Paste or upload any text &mdash; a chapter, essay, draft. We generate ambient music
+              tuned to your words and guide you through it at your reading pace.
+            </p>
+            <div class="lead-actions">
+              <a class="news-button news-button-solid" href="/room" id="hero-cta">Open Room</a>
+              <button class="news-button news-button-outline" data-jump="how-it-works" type="button" id="hero-learn">How it works</button>
+            </div>
+          </article>
+
+          <div class="col-rule" aria-hidden="true"></div>
+
+          <aside class="lead-column">
+            <div class="print-card ticker-card">
+              <span class="kicker">Bulletin</span>
+              <h2>Reader Notes</h2>
+              <p>Built for long-form text &mdash; chapters, essays, drafts, and manuscripts.</p>
+              <ul>
+                <li>Upload <code>.txt</code> or <code>.md</code></li>
+                <li>Set your reading pace in WPM</li>
+                <li>Jump to any paragraph instantly</li>
+                <li>Live ambient stream per session</li>
+              </ul>
+            </div>
+
+            <div class="print-card mono-card">
+              <span class="mono-title">Signal Active</span>
+              <div class="mono-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+              <p class="mono-copy">Music stays present without becoming noise. Always below the words.</p>
+            </div>
+          </aside>
+        </section>
+
+        <!-- Briefs -->
+        <section class="briefs-row">
+          <article>
+            <h3>Compose</h3>
+            <p>Drop in text from notes, drafts, or manuscripts. Paste directly or upload a file.</p>
+          </article>
+          <article>
+            <h3>Guide</h3>
+            <p>Current line comes forward. Nearby lines stay readable. Distant text fades away.</p>
+          </article>
+          <article>
+            <h3>Stream</h3>
+            <p>Ambient music generated live from your text &mdash; low, steady, and contextual.</p>
+          </article>
+        </section>
+
+        <!-- How It Works -->
+        <section id="how-it-works" class="story-layout">
+          <div class="reader-story-preview story-preview" data-step="0">
+            <div class="preview-header">
+              <span>Reading Room Proof</span>
+              <span>Scroll to shift focus</span>
+            </div>
+
+            <div class="line-sheet">
+              <div class="line-marker" aria-hidden="true"></div>
+              <p class="preview-line preview-line-current">The paragraph in focus comes to the front.</p>
+              <p class="preview-line preview-line-near">The next line waits in softer contrast.</p>
+              <p class="preview-line preview-line-far">Further text stays visible but quiet.</p>
+            </div>
+
+            <div class="ambient-strip">
+              <p>Ambient stream active</p>
+              <div class="mono-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+          </div>
+
+          <div class="story-steps">
+            <article class="story-step is-active" data-step="0">
+              <span class="kicker">01</span>
+              <h2>Bring your text in.</h2>
+              <p>Upload a text file or paste a long section into the compose desk.</p>
+            </article>
+
+            <article class="story-step" data-step="1">
+              <span class="kicker">02</span>
+              <h2>Scroll. Watch the line shift.</h2>
+              <p>The preview stays pinned while each scroll step moves focus to the next line.</p>
+            </article>
+
+            <article class="story-step" data-step="2">
+              <span class="kicker">03</span>
+              <h2>Keep sound under the words.</h2>
+              <p>The ambient stream plays quietly under the reading surface, matched to your content.</p>
+            </article>
+          </div>
+        </section>
+
+        <!-- Closing CTA -->
+        <section class="closing-layout">
+          <article class="closing-lead">
+            <span class="kicker">Final Column</span>
+            <h2>Open the room. Read faster, or follow the pace.</h2>
+          </article>
+          <div class="closing-action">
+            <p>Switch between guided pace and free reading whenever you want. The music follows either way.</p>
+            <a class="news-button news-button-solid" href="/room" id="closing-cta">Open room</a>
+          </div>
+        </section>
+      </main>
+
+      <footer class="paper-footer">
+        <div class="footer-row">
+          <p>BookFM Times</p>
+          <p>Reader-first ambient sessions</p>
+          <p>Edition 01</p>
+        </div>
+      </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/ScrollTrigger.min.js"></script>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

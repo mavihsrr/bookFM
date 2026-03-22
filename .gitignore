@@ -1,0 +1,22 @@
+# Environments
+.env
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Output directories
+.bookfm_output/
+*.log
+
+# Node & Build (if applicable)
+node_modules/
+dist/
+build/
+
+# Mac OS
+.DS_Store

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bookfm"
+version = "0.1.0"
+description = "Adaptive reading music prototype powered by Gemini and Lyria RealTime."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "google-genai",
+  "openai>=2.0.0",
+  "pydantic>=2.6",
+  "python-multipart",
+  "python-dotenv",
+  "uvicorn>=0.30",
+  "supabase",
+]
+
+[project.scripts]
+bookfm = "bookfm.cli:run"
+bookfm-api = "bookfm.api:run"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
