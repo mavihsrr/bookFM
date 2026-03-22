@@ -16,7 +16,6 @@ dependencies = [
   "python-multipart",
   "python-dotenv",
   "uvicorn>=0.30",
-  "supabase",
 ]
 
 [project.scripts]

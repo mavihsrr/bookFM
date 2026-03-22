@@ -197,11 +197,12 @@ def build_analysis_prompt(section: DocumentSection, reading_speed_wpm: int) -> s
 async def analyze_section(
     section: DocumentSection,
     *,
+    api_key: str,
     reading_speed_wpm: int,
     previous_plan: MusicPlan | None = None,
     analysis_model: str = DEFAULT_ANALYSIS_MODEL,
 ) -> MusicPlan:
-    client = genai.Client()
+    client = genai.Client(api_key=api_key)
     prompt = build_analysis_prompt(section, reading_speed_wpm)
     if previous_plan is not None:
         prompt += (

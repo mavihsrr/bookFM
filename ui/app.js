@@ -29,6 +29,7 @@ const state = {
   paragraphDurations: [],
   currentParagraphIndex: 0,
   freeReadMode: false,
+  blurMode: true,
   paragraphInteractionBound: false,
 };
 
@@ -620,6 +621,7 @@ function initRoomPage() {
   const readerTitle      = document.getElementById("reader-title");
   const readerMeta       = document.getElementById("reader-meta");
   const readerModeToggle = document.getElementById("reader-mode-toggle");
+  const readerBlurToggle = document.getElementById("reader-blur-toggle");
   const backButton       = document.getElementById("back-button");
   const musicRail        = document.getElementById("music-rail");
   const musicTitle       = document.getElementById("music-title");
@@ -629,6 +631,11 @@ function initRoomPage() {
   const iconPause        = document.getElementById("icon-pause");
   const iconPlay         = document.getElementById("icon-play");
   const uploadPanel      = document.getElementById("upload-panel");
+  const apiKeyInput      = document.getElementById("gemini-api-key");
+
+  if (apiKeyInput) {
+    apiKeyInput.value = localStorage.getItem("bookfm_gemini_key") || "";
+  }
 
   /* ── Play / Pause ───────────────────────────────────── */
   let musicPaused = false;
@@ -674,6 +681,14 @@ function initRoomPage() {
 
     if (!enabled && state.paragraphNodes.length) {
       runReadingGuide(state.currentParagraphIndex);
+    }
+  };
+
+  const setBlurMode = (enabled) => {
+    state.blurMode = enabled;
+    readerArticle.classList.toggle("no-blur-mode", !enabled);
+    if (readerBlurToggle) {
+      readerBlurToggle.textContent = enabled ? "Blur: ON" : "Blur: OFF";
     }
   };
 
@@ -871,9 +886,15 @@ function initRoomPage() {
       };
 
       socket.addEventListener("open", () => {
+        const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+        if (apiKey) {
+          localStorage.setItem("bookfm_gemini_key", apiKey);
+        }
+
         socket.send(JSON.stringify({
           ...basePayload(readingSpeed.value),
           text: sourceText,
+          gemini_api_key: apiKey,
           section_index: 0,
           count: 4,
           show_prompts: false,
@@ -939,6 +960,10 @@ function initRoomPage() {
     setFreeReadMode(!state.freeReadMode);
   });
 
+  readerBlurToggle?.addEventListener("click", () => {
+    setBlurMode(!state.blurMode);
+  });
+
   backButton.addEventListener("click", () => {
     if (state.liveSocket) {
       state.liveSocket.close();
@@ -946,6 +971,7 @@ function initRoomPage() {
     livePlayer.reset();
     resetReaderProgress();
     setFreeReadMode(false);
+    setBlurMode(true);
     setLoading(false);
     hideMusicRail();
     showReader(false);

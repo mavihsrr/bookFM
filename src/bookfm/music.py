@@ -147,6 +147,7 @@ async def generate_section_audio(
     section: DocumentSection,
     plan: MusicPlan,
     *,
+    api_key: str,
     reading_speed_wpm: int,
     duration_seconds: int | None = None,
     previous_plan: MusicPlan | None = None,
@@ -154,7 +155,7 @@ async def generate_section_audio(
     clip_seconds = duration_seconds or max(18, min(section.estimated_seconds, 42))
     output_path = OUTPUT_DIR / f"section_{section.index}.pcm"
 
-    client = genai.Client(http_options={"api_version": "v1alpha"})
+    client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
     prompts = build_weighted_prompts(plan, previous_plan=previous_plan)
     config = build_music_config(plan, reading_speed_wpm)
 

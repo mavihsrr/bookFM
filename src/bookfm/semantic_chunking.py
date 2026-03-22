@@ -41,8 +41,8 @@ def _stats(values: list[float]) -> tuple[float, float]:
     return mean, math.sqrt(var)
 
 
-async def embed_blocks_google(blocks: list[str], *, model: str = DEFAULT_EMBED_MODEL) -> list[list[float]]:
-    client = genai.Client()
+async def embed_blocks_google(blocks: list[str], api_key: str, *, model: str = DEFAULT_EMBED_MODEL) -> list[list[float]]:
+    client = genai.Client(api_key=api_key)
     response = await client.aio.models.embed_content(
         model=model,
         contents=blocks,
@@ -54,8 +54,6 @@ async def embed_blocks_google(blocks: list[str], *, model: str = DEFAULT_EMBED_M
         vectors.append(list(emb.values or []))
     return vectors
 
-
-async def embed_blocks_openai(blocks: list[str], *, model: str = DEFAULT_OPENAI_EMBED_MODEL) -> list[list[float]]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("Missing OPENAI_API_KEY for OpenAI embedding backend.")
@@ -74,17 +72,16 @@ async def embed_blocks_openai(blocks: list[str], *, model: str = DEFAULT_OPENAI_
 async def semantic_breakpoints(
     blocks: list[str],
     *,
-    backend: str,
-    model: str,
+    api_key: str,
+    backend: str = "google",
+    model: str = DEFAULT_EMBED_MODEL,
 ) -> set[int]:
     if len(blocks) < 3:
         return set()
 
     limited = blocks[:SEMANTIC_CHUNK_MAX_BLOCKS]
-    if backend == "openai":
-        vectors = await embed_blocks_openai(limited, model=model)
-    elif backend == "google":
-        vectors = await embed_blocks_google(limited, model=model)
+    if backend == "google":
+        vectors = await embed_blocks_google(limited, api_key=api_key, model=model)
     else:
         raise ValueError(f"Unknown embedding backend: {backend}")
     if len(vectors) != len(limited):
@@ -103,11 +100,12 @@ async def semantic_breakpoints(
 
 async def apply_semantic_breaks(
     document: Document,
+    api_key: str,
     *,
     reading_speed_wpm: int,
     blocks: list[str],
     base_sections: list[DocumentSection],
-    embed_backend: str = "openai",
+    embed_backend: str = "google",
     embed_model: str | None = None,
 ) -> Document:
     # If deterministic chunking already produced many sections, keep it.
@@ -115,8 +113,8 @@ async def apply_semantic_breaks(
         document.sections = base_sections
         return document
 
-    model = embed_model or (DEFAULT_OPENAI_EMBED_MODEL if embed_backend == "openai" else DEFAULT_EMBED_MODEL)
-    breaks = await semantic_breakpoints(blocks, backend=embed_backend, model=model)
+    model = embed_model or DEFAULT_EMBED_MODEL
+    breaks = await semantic_breakpoints(blocks, api_key=api_key, backend=embed_backend, model=model)
     if not breaks:
         document.sections = base_sections
         return document

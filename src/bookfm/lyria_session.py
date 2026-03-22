@@ -78,8 +78,9 @@ def _tail_prompt_map(plan: MusicPlan) -> dict[str, float]:
 
 
 class LyriaSessionManager:
-    def __init__(self) -> None:
-        self._client = genai.Client(http_options={"api_version": "v1alpha"})
+    def __init__(self, api_key: str):
+        self._client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
+        self._session = None
 
     async def stream_sections(
         self,

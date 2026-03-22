@@ -499,7 +499,7 @@ body.is-reading .paper-header {
 .panel-textarea {
   flex: 1;
   width: 100%;
-  min-height: 220px;
+  min-height: 120px;
   border: none;
   background: transparent;
   color: var(--ink);
@@ -908,3 +908,7 @@ body.is-reading .reading-progress-bar {
   .reading-masthead { padding: 68px 14px 20px; }
   .reading-display-title { font-size: clamp(2rem, 9vw, 3.5rem); }
 }
+.reader-article > .reader-paragraph:first-child::first-letter { float: left; font-size: 4rem; line-height: 1; padding-right: 8px; font-family: var(--tx-head); font-weight: 900; }
+
+.reader-article.no-blur-mode .reader-paragraph { filter: blur(0) !important; }
+

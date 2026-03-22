@@ -21,14 +21,22 @@ async def prepare_document(
     semantic: bool = False,
     embed_backend: str = "openai",
     embed_model: str | None = None,
+    api_key: str | None = None,
 ) -> Document:
     document = await load_document(text=text, text_file=text_file, epub_file=epub_file)
     base = chunk_document(document, reading_speed_wpm=reading_speed_wpm)
     if not semantic:
         return base
+    
+    # Resolve API key from env if not provided
+    if not api_key:
+        import os
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+
     blocks = split_blocks(document.full_text, max_chars=DEFAULT_SECTION_MAX_CHARS)
     return await apply_semantic_breaks(
         document,
+        api_key,
         reading_speed_wpm=reading_speed_wpm,
         blocks=blocks,
         base_sections=base.sections,
@@ -40,6 +48,7 @@ async def prepare_document(
 async def build_section_plans(
     document: Document,
     *,
+    api_key: str,
     reading_speed_wpm: int,
     start_index: int = 0,
     count: int = DEFAULT_PREFETCH_COUNT,
@@ -49,6 +58,7 @@ async def build_section_plans(
     if start_index > 0:
         previous_plan = await analyze_section(
             document.sections[start_index - 1],
+            api_key=api_key,
             reading_speed_wpm=reading_speed_wpm,
         )
 
@@ -56,6 +66,7 @@ async def build_section_plans(
     for section in window:
         plan = await analyze_section(
             section,
+            api_key=api_key,
             reading_speed_wpm=reading_speed_wpm,
             previous_plan=previous_plan,
         )
@@ -68,6 +79,7 @@ async def build_section_plans(
 async def prefetch_section_audio(
     document: Document,
     *,
+    api_key: str,
     reading_speed_wpm: int,
     start_index: int = 0,
     count: int = DEFAULT_PREFETCH_COUNT,
@@ -76,6 +88,7 @@ async def prefetch_section_audio(
     if planned_sections is None:
         planned_sections = await build_section_plans(
             document,
+            api_key=api_key,
             reading_speed_wpm=reading_speed_wpm,
             start_index=start_index,
             count=count,
@@ -85,6 +98,7 @@ async def prefetch_section_audio(
         clip = await generate_section_audio(
             section,
             plan,
+            api_key=api_key,
             reading_speed_wpm=reading_speed_wpm,
             previous_plan=previous_plan,
         )

@@ -14,7 +14,6 @@ import uvicorn
 from .api_models import BaseTextRequest, GenerateTextRequest
 from .api_services import generate_live_from_document, inspect_payload, prepare_from_upload
 from .config import DEFAULT_CROSSFADE_SECONDS, DEFAULT_PREFETCH_COUNT, DEFAULT_READING_SPEED_WPM, OUTPUT_DIR
-from .db import check_rate_limit, log_interaction
 from .lyria_session import LyriaSessionManager
 from .pipeline import build_section_plans, prepare_document
 
@@ -65,6 +64,10 @@ def _ui_file(name: str) -> FileResponse:
         media_type = "text/css"
     elif name.endswith(".js"):
         media_type = "application/javascript"
+    elif name.endswith(".png"):
+        media_type = "image/png"
+    elif name.endswith(".ico"):
+        media_type = "image/x-icon"
 
     return FileResponse(path, media_type=media_type)
 
@@ -78,17 +81,22 @@ def _multipart_available() -> bool:
 
 
 UPLOADS_AVAILABLE = _multipart_available()
+
+# Read allowed origin from env for production. Falls back to localhost only in dev.
+_ALLOWED_ORIGIN = os.getenv("BOOKFM_CORS_ORIGIN", "")
+_CORS_ORIGINS = [o.strip() for o in _ALLOWED_ORIGIN.split(",") if o.strip()] or [
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 
@@ -195,38 +203,38 @@ async def stream_live_text(websocket: WebSocket) -> None:
     try:
         payload = await websocket.receive_json()
         
-        # Check rate limits early
-        client_ip = websocket.client.host if websocket.client else "unknown"
-        if not check_rate_limit(client_ip, max_requests=3):
-            await websocket.send_json({
-                "event": "error", 
-                "detail": "You have reached your free daily limit of 3 reading sessions."
-            })
+        gemini_api_key = str(payload.get("gemini_api_key") or "").strip()
+        if not gemini_api_key:
+            log.error("Rejected connection: Missing Gemini API Key")
+            await websocket.send_json({"event": "error", "detail": "A valid Gemini API Key is required."})
             return
 
         text = str(payload.get("text") or "").strip()
         if not text:
             await websocket.send_json({"event": "error", "detail": "Text is required for live streaming."})
             return
-        reading_speed_wpm = int(payload.get("reading_speed_wpm", DEFAULT_READING_SPEED_WPM))
+
+        # Clamp params to safe ranges
+        reading_speed_wpm = max(60, min(600, int(payload.get("reading_speed_wpm", DEFAULT_READING_SPEED_WPM))))
         semantic = bool(payload.get("semantic", False))
-        
-        log.info(f"====== RECEIVED NEW WEBSOCKET PAYLOAD ======")
-        log.info(f"Target WPM: {reading_speed_wpm}")
-        log.info(f"Input text (raw): {text!r}")
-        log.info(f"============================================")
-        embed_backend = str(payload.get("embed_backend", "openai"))
-        embed_model = payload.get("embed_model")
-        section_index = int(payload.get("section_index", 0))
-        count = int(payload.get("count", DEFAULT_PREFETCH_COUNT))
+        section_index = max(0, int(payload.get("section_index", 0)))
+        count = max(1, min(8, int(payload.get("count", DEFAULT_PREFETCH_COUNT))))
         show_prompts = bool(payload.get("show_prompts", False))
+        embed_model = payload.get("embed_model")
+
+        # Log session info — never log the API key or raw key chars
+        log.info("====== NEW READING SESSION ======")
+        log.info("WPM: %d | Sections requested: %d", reading_speed_wpm, count)
+        log.info("Text (first 200 chars): %r", text[:200])
+        log.info("=================================")
 
         document = await prepare_document(
             text=text,
             reading_speed_wpm=reading_speed_wpm,
             semantic=semantic,
-            embed_backend=embed_backend,
+            embed_backend="google",
             embed_model=embed_model,
+            api_key=gemini_api_key,
         )
         if not document.sections:
             await websocket.send_json({"event": "error", "detail": "No readable sections were created from the input."})
@@ -234,6 +242,7 @@ async def stream_live_text(websocket: WebSocket) -> None:
 
         planned_sections = await build_section_plans(
             document,
+            api_key=gemini_api_key,
             reading_speed_wpm=reading_speed_wpm,
             start_index=section_index,
             count=count,
@@ -241,8 +250,6 @@ async def stream_live_text(websocket: WebSocket) -> None:
         
         if planned_sections:
             first_plan = planned_sections[0][1]
-            # Log the session to Supabase
-            log_interaction(client_ip, text, reading_speed_wpm, first_plan)
 
         plans = [plan for _, plan, _ in planned_sections]
         durations = [max(12, sec.estimated_seconds) for sec, _, _ in planned_sections]
@@ -268,12 +275,12 @@ async def stream_live_text(websocket: WebSocket) -> None:
             }
         )
 
-        manager = LyriaSessionManager()
+        session_manager = LyriaSessionManager(api_key=gemini_api_key)
 
         async def send_chunk(data: bytes) -> None:
             await websocket.send_bytes(data)
 
-        live_clip = await manager.stream_sections(
+        live_clip = await session_manager.stream_sections(
             plans,
             reading_speed_wpm=reading_speed_wpm,
             durations=durations,
@@ -319,6 +326,7 @@ async def stream_live_text(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         return
     except Exception as exc:
+        log.exception(f"WebSocket error: {exc}")
         try:
             await websocket.send_json({"event": "error", "detail": str(exc)})
         except RuntimeError:
@@ -356,6 +364,16 @@ async def app_js():
 @app.get("/styles.css")
 async def styles_css():
     return _ui_file("styles.css")
+
+
+@app.get("/logo.png")
+async def logo_png():
+    return _ui_file("logo.png")
+
+
+@app.get("/favicon.ico")
+async def favicon_ico():
+    return _ui_file("favicon.ico")
 
 
 def run() -> None:

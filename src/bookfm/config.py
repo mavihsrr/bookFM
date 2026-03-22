@@ -25,8 +25,6 @@ DEFAULT_ANALYSIS_MODEL = os.getenv("ANALYSIS_MODEL", "gemini-2.5-flash-lite")
 DEFAULT_EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-004")
 DEFAULT_OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-ada-002")
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 OUTPUT_DIR = Path(".bookfm_output")
 OUTPUT_DIR.mkdir(exist_ok=True)
