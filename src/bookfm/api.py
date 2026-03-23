@@ -13,9 +13,22 @@ import uvicorn
 
 from .api_models import BaseTextRequest, GenerateTextRequest
 from .api_services import generate_live_from_document, inspect_payload, prepare_from_upload
-from .config import DEFAULT_CROSSFADE_SECONDS, DEFAULT_PREFETCH_COUNT, DEFAULT_READING_SPEED_WPM, OUTPUT_DIR
+from .config import (
+    DEFAULT_ANALYSIS_MODEL,
+    DEFAULT_CROSSFADE_SECONDS,
+    DEFAULT_PREFETCH_COUNT,
+    DEFAULT_READING_SPEED_WPM,
+    DEFAULT_STREAM_GAIN,
+    ENABLE_SEMANTIC_CHUNKING,
+    OUTPUT_DIR,
+    PER_SECTION_OVERHEAD_SECONDS,
+    READING_PACE_BUFFER_RATIO,
+    SECTION_MAX_STREAM_SECONDS,
+    SECTION_MIN_STREAM_SECONDS,
+)
 from .lyria_session import LyriaSessionManager
 from .pipeline import build_section_plans, prepare_document
+from .timing import build_stream_durations
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -68,6 +81,8 @@ def _ui_file(name: str) -> FileResponse:
         media_type = "image/png"
     elif name.endswith(".ico"):
         media_type = "image/x-icon"
+    elif name.endswith(".webmanifest"):
+        media_type = "application/manifest+json"
 
     return FileResponse(path, media_type=media_type)
 
@@ -108,6 +123,14 @@ async def health() -> dict:
         "ui_available": UI_DIR.exists(),
         "ui_dir": str(UI_DIR),
         "streaming_available": True,
+        "analysis_model": DEFAULT_ANALYSIS_MODEL,
+        "stream_gain": DEFAULT_STREAM_GAIN,
+        "timing": {
+            "pace_buffer_ratio": READING_PACE_BUFFER_RATIO,
+            "section_min_stream_seconds": SECTION_MIN_STREAM_SECONDS,
+            "section_max_stream_seconds": SECTION_MAX_STREAM_SECONDS,
+            "per_section_overhead_seconds": PER_SECTION_OVERHEAD_SECONDS,
+        },
     }
 
 
@@ -116,9 +139,7 @@ async def inspect_text(req: BaseTextRequest) -> dict:
     document = await prepare_document(
         text=req.text,
         reading_speed_wpm=req.reading_speed_wpm,
-        semantic=req.semantic,
-        embed_backend=req.embed_backend,
-        embed_model=req.embed_model,
+        semantic=ENABLE_SEMANTIC_CHUNKING,
     )
     return inspect_payload(document)
 
@@ -128,9 +149,7 @@ async def generate_live_text(req: GenerateTextRequest) -> dict:
     document = await prepare_document(
         text=req.text,
         reading_speed_wpm=req.reading_speed_wpm,
-        semantic=req.semantic,
-        embed_backend=req.embed_backend,
-        embed_model=req.embed_model,
+        semantic=ENABLE_SEMANTIC_CHUNKING,
     )
     return await generate_live_from_document(
         document=document,
@@ -146,16 +165,12 @@ if UPLOADS_AVAILABLE:
     async def inspect_upload(
         file: UploadFile = File(...),
         reading_speed_wpm: int = Form(DEFAULT_READING_SPEED_WPM),
-        semantic: bool = Form(False),
-        embed_backend: str = Form("openai"),
-        embed_model: str | None = Form(None),
+        semantic: bool = Form(ENABLE_SEMANTIC_CHUNKING),
     ) -> dict:
         document = await prepare_from_upload(
             file,
             reading_speed_wpm=reading_speed_wpm,
-            semantic=semantic,
-            embed_backend=embed_backend,
-            embed_model=embed_model,
+            semantic=ENABLE_SEMANTIC_CHUNKING,
         )
         return inspect_payload(document)
 
@@ -166,17 +181,13 @@ if UPLOADS_AVAILABLE:
         section_index: int = Form(0),
         count: int = Form(DEFAULT_PREFETCH_COUNT),
         reading_speed_wpm: int = Form(DEFAULT_READING_SPEED_WPM),
-        semantic: bool = Form(False),
-        embed_backend: str = Form("openai"),
-        embed_model: str | None = Form(None),
+        semantic: bool = Form(ENABLE_SEMANTIC_CHUNKING),
         show_prompts: bool = Form(False),
     ) -> dict:
         document = await prepare_from_upload(
             file,
             reading_speed_wpm=reading_speed_wpm,
-            semantic=semantic,
-            embed_backend=embed_backend,
-            embed_model=embed_model,
+            semantic=ENABLE_SEMANTIC_CHUNKING,
         )
         return await generate_live_from_document(
             document=document,
@@ -216,11 +227,9 @@ async def stream_live_text(websocket: WebSocket) -> None:
 
         # Clamp params to safe ranges
         reading_speed_wpm = max(60, min(600, int(payload.get("reading_speed_wpm", DEFAULT_READING_SPEED_WPM))))
-        semantic = bool(payload.get("semantic", False))
         section_index = max(0, int(payload.get("section_index", 0)))
         count = max(1, min(8, int(payload.get("count", DEFAULT_PREFETCH_COUNT))))
         show_prompts = bool(payload.get("show_prompts", False))
-        embed_model = payload.get("embed_model")
 
         # Log session info — never log the API key or raw key chars
         log.info("====== NEW READING SESSION ======")
@@ -231,9 +240,7 @@ async def stream_live_text(websocket: WebSocket) -> None:
         document = await prepare_document(
             text=text,
             reading_speed_wpm=reading_speed_wpm,
-            semantic=semantic,
-            embed_backend="google",
-            embed_model=embed_model,
+            semantic=ENABLE_SEMANTIC_CHUNKING,
             api_key=gemini_api_key,
         )
         if not document.sections:
@@ -252,7 +259,16 @@ async def stream_live_text(websocket: WebSocket) -> None:
             first_plan = planned_sections[0][1]
 
         plans = [plan for _, plan, _ in planned_sections]
-        durations = [max(12, sec.estimated_seconds) for sec, _, _ in planned_sections]
+        section_window = [sec for sec, _, _ in planned_sections]
+        durations = build_stream_durations(section_window, reading_speed_wpm=reading_speed_wpm)
+        log.info(
+            "[Timing] Section budgets: %s",
+            ", ".join(
+                f"#{sec.index} words={sec.word_count} paras={sec.paragraph_count} -> {dur}s"
+                for sec, dur in zip(section_window, durations, strict=True)
+            ),
+        )
+        log.info("[Timing] Total budget=%ds at %d WPM", sum(durations), reading_speed_wpm)
         min_duration = min(durations) if durations else 12
         crossfade_seconds = min(DEFAULT_CROSSFADE_SECONDS, max(2, int(min_duration * 0.25)))
         output_pcm = OUTPUT_DIR / f"live_{int(time.time() * 1000)}.pcm"
@@ -356,24 +372,9 @@ async def room_html():
     return _ui_file("room.html")
 
 
-@app.get("/app.js")
-async def app_js():
-    return _ui_file("app.js")
-
-
-@app.get("/styles.css")
-async def styles_css():
-    return _ui_file("styles.css")
-
-
-@app.get("/logo.png")
-async def logo_png():
-    return _ui_file("logo.png")
-
-
-@app.get("/favicon.ico")
-async def favicon_ico():
-    return _ui_file("favicon.ico")
+@app.get("/{name:path}")
+async def static_files(name: str):
+    return _ui_file(name)
 
 
 def run() -> None:

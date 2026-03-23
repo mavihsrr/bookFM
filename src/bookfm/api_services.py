@@ -11,6 +11,7 @@ from .config import DEFAULT_CROSSFADE_SECONDS, OUTPUT_DIR
 from .lyria_session import LyriaSessionManager
 from .music import build_music_config, build_weighted_prompts
 from .pipeline import build_section_plans, prepare_document
+from .timing import build_stream_durations
 
 
 def clamp_index(index: int, total: int) -> int:
@@ -100,7 +101,8 @@ async def generate_live_from_document(
         count=count,
     )
     plans = [plan for _, plan, _ in planned_sections]
-    durations = [max(12, sec.estimated_seconds) for sec, _, _ in planned_sections]
+    section_window = [sec for sec, _, _ in planned_sections]
+    durations = build_stream_durations(section_window, reading_speed_wpm=reading_speed_wpm)
     min_duration = min(durations) if durations else 12
     crossfade_seconds = min(DEFAULT_CROSSFADE_SECONDS, max(2, int(min_duration * 0.25)))
 

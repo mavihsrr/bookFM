@@ -18,20 +18,18 @@ async def prepare_document(
     text_file: Path | None = None,
     epub_file: Path | None = None,
     reading_speed_wpm: int = DEFAULT_READING_SPEED_WPM,
-    semantic: bool = False,
-    embed_backend: str = "openai",
-    embed_model: str | None = None,
+    semantic: bool = True,
     api_key: str | None = None,
 ) -> Document:
     document = await load_document(text=text, text_file=text_file, epub_file=epub_file)
     base = chunk_document(document, reading_speed_wpm=reading_speed_wpm)
     if not semantic:
         return base
-    
+
     # Resolve API key from env if not provided
     if not api_key:
         import os
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+        api_key = os.getenv("GEMINI_API_KEY") or ""
 
     blocks = split_blocks(document.full_text, max_chars=DEFAULT_SECTION_MAX_CHARS)
     return await apply_semantic_breaks(
@@ -40,8 +38,6 @@ async def prepare_document(
         reading_speed_wpm=reading_speed_wpm,
         blocks=blocks,
         base_sections=base.sections,
-        embed_backend=embed_backend,
-        embed_model=embed_model,
     )
 
 

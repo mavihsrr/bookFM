@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import audioop
 import inspect
 import logging
 from pathlib import Path
@@ -9,7 +10,15 @@ from typing import Awaitable, Callable
 from google import genai
 from google.genai import types
 
-from .config import BYTES_PER_SAMPLE, CHANNELS, DEFAULT_CROSSFADE_SECONDS, LYRIA_MODEL, OUTPUT_DIR, SAMPLE_RATE
+from .config import (
+    BYTES_PER_SAMPLE,
+    CHANNELS,
+    DEFAULT_CROSSFADE_SECONDS,
+    DEFAULT_STREAM_GAIN,
+    LYRIA_MODEL,
+    OUTPUT_DIR,
+    SAMPLE_RATE,
+)
 from .models import DocumentSection, GeneratedClip, MusicPlan
 
 log = logging.getLogger(__name__)
@@ -20,34 +29,53 @@ ChunkCallback = Callable[[bytes], Awaitable[None] | None]
 
 def blend_bpm(story_bpm: int, reading_speed_wpm: int) -> int:
     speed_mapped = max(60, min(180, int(70 + (reading_speed_wpm - 120) * 0.35)))
-    return max(60, min(200, int(round((story_bpm * 0.7) + (speed_mapped * 0.3)))))
+    # Keep section-derived tempo as the primary source; reading speed is a light nudge only.
+    return max(60, min(200, int(round((story_bpm * 0.9) + (speed_mapped * 0.1)))))
 
 
 def build_weighted_prompts(plan: MusicPlan, previous_plan: MusicPlan | None = None) -> list[types.WeightedPrompt]:
-    prompts = [types.WeightedPrompt(text=plan.composer_prompt, weight=1.95)]
+    prompts = [types.WeightedPrompt(text=plan.composer_prompt, weight=2.25)]
     prompts.append(
         types.WeightedPrompt(
-            text="adaptive ambient reading layer, understated and text-led",
-            weight=0.16,
+            text="background score for reading: supportive, subtle, and context-led",
+            weight=0.28,
         )
     )
-    prompts.extend(types.WeightedPrompt(text=tag, weight=0.78) for tag in plan.mood_tags[:3])
-    prompts.extend(types.WeightedPrompt(text=tag, weight=0.7) for tag in plan.genre_tags[:2])
-    prompts.extend(types.WeightedPrompt(text=tag, weight=0.64) for tag in plan.instruments[:3])
+    prompts.append(
+        types.WeightedPrompt(
+            text="instrumental only, avoid literal scene sound effects",
+            weight=0.2,
+        )
+    )
+    prompts.append(
+        types.WeightedPrompt(
+            text="clean mix, smooth texture, avoid crackle or harsh distortion artifacts",
+            weight=0.24,
+        )
+    )
+    prompts.extend(types.WeightedPrompt(text=tag, weight=1.15) for tag in plan.mood_tags[:4])
+    prompts.extend(types.WeightedPrompt(text=tag, weight=0.78) for tag in plan.genre_tags[:2])
+    prompts.extend(types.WeightedPrompt(text=tag, weight=0.68) for tag in plan.instruments[:3])
+    prompts.append(
+        types.WeightedPrompt(
+            text="preserve the emotional tone of the text and avoid abrupt jumps",
+            weight=0.22,
+        )
+    )
     if previous_plan is not None:
         overlap = len(set(plan.mood_tags) & set(previous_plan.mood_tags))
-        carry_weight = 0.16 if overlap > 0 else 0.08
+        carry_weight = 0.08 if overlap > 0 else 0.04
         prompts.extend(types.WeightedPrompt(text=tag, weight=carry_weight) for tag in previous_plan.mood_tags[:2])
-        prompts.extend(types.WeightedPrompt(text=tag, weight=carry_weight * 0.75) for tag in previous_plan.genre_tags[:1])
+        prompts.extend(types.WeightedPrompt(text=tag, weight=carry_weight * 0.7) for tag in previous_plan.genre_tags[:1])
     return prompts
 
 
 def build_music_config(plan: MusicPlan, reading_speed_wpm: int) -> types.LiveMusicGenerationConfig:
     bpm = max(60, min(200, blend_bpm(plan.bpm, reading_speed_wpm)))
-    density = min(plan.density, 1.0)
-    brightness = min(plan.brightness, 1.0)
-    guidance = min(plan.guidance, 6.0)
-    temperature = min(plan.temperature, 3.0)
+    density = min(plan.density, 0.58)
+    brightness = min(plan.brightness, 0.52)
+    guidance = max(1.0, min(plan.guidance, 3.6))
+    temperature = min(plan.temperature, 1.35)
     log.info(
         "[Lyria Config] bpm=%s density=%.3f brightness=%.3f guidance=%.3f temperature=%.3f",
         bpm, density, brightness, guidance, temperature,
@@ -80,6 +108,7 @@ async def receive_audio_stream(
     bytes_written = 0
 
     handle = output_file.open("wb") if output_file is not None else None
+    gain = float(DEFAULT_STREAM_GAIN)
     try:
         async for message in session.receive():
             server_content = getattr(message, "server_content", None)
@@ -91,6 +120,8 @@ async def receive_audio_stream(
                 data = getattr(chunk, "data", None)
                 if not data:
                     continue
+                if gain < 0.999:
+                    data = audioop.mul(data, BYTES_PER_SAMPLE, gain)
                 if handle is not None:
                     handle.write(data)
                 if on_chunk is not None:

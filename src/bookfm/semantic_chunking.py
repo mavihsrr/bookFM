@@ -1,17 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 import math
 from dataclasses import replace
 
-import os
 
 from google import genai
-from google.genai import types
 
 from .config import (
-    DEFAULT_EMBED_MODEL,
-    DEFAULT_OPENAI_EMBED_MODEL,
     DEFAULT_SECTION_MAX_CHARS,
     DEFAULT_SECTION_MAX_SECONDS,
     DEFAULT_SECTION_MIN_SECONDS,
@@ -41,12 +36,11 @@ def _stats(values: list[float]) -> tuple[float, float]:
     return mean, math.sqrt(var)
 
 
-async def embed_blocks_google(blocks: list[str], api_key: str, *, model: str = DEFAULT_EMBED_MODEL) -> list[list[float]]:
+async def embed_blocks_google(blocks: list[str], api_key: str) -> list[list[float]]:
     client = genai.Client(api_key=api_key)
     response = await client.aio.models.embed_content(
-        model=model,
+        model="gemini-embedding-001",
         contents=blocks,
-        config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY", auto_truncate=True),
     )
     embeddings = response.embeddings or []
     vectors: list[list[float]] = []
@@ -54,34 +48,19 @@ async def embed_blocks_google(blocks: list[str], api_key: str, *, model: str = D
         vectors.append(list(emb.values or []))
     return vectors
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("Missing OPENAI_API_KEY for OpenAI embedding backend.")
-
-    from openai import OpenAI
-
-    def _embed() -> list[list[float]]:
-        client = OpenAI(api_key=api_key)
-        response = client.embeddings.create(model=model, input=blocks, encoding_format="float")
-        data = sorted(response.data, key=lambda item: item.index)
-        return [list(item.embedding) for item in data]
-
-    return await asyncio.to_thread(_embed)
-
 
 async def semantic_breakpoints(
     blocks: list[str],
     *,
     api_key: str,
     backend: str = "google",
-    model: str = DEFAULT_EMBED_MODEL,
 ) -> set[int]:
     if len(blocks) < 3:
         return set()
 
     limited = blocks[:SEMANTIC_CHUNK_MAX_BLOCKS]
     if backend == "google":
-        vectors = await embed_blocks_google(limited, api_key=api_key, model=model)
+        vectors = await embed_blocks_google(limited, api_key=api_key)
     else:
         raise ValueError(f"Unknown embedding backend: {backend}")
     if len(vectors) != len(limited):
@@ -113,8 +92,8 @@ async def apply_semantic_breaks(
         document.sections = base_sections
         return document
 
-    model = embed_model or DEFAULT_EMBED_MODEL
-    breaks = await semantic_breakpoints(blocks, api_key=api_key, backend=embed_backend, model=model)
+    _ = embed_model
+    breaks = await semantic_breakpoints(blocks, api_key=api_key, backend=embed_backend)
     if not breaks:
         document.sections = base_sections
         return document

@@ -117,10 +117,10 @@ class LyriaSessionManager:
             intro_seconds = max(1, min(intro_seconds, max(1, durations[0] // 4)))
             outro_seconds = max(3, min(outro_seconds, max(3, durations[-1] // 2)))
             tail_seconds = max(2, tail_seconds)
-            intro_map = _scale_prompt_map(_prompt_map(build_weighted_prompts(first_plan)), 0.65)
-            intro_map["soft opening"] = 0.45
-            intro_map["gradual build"] = 0.4
-            intro_map[f"shape the piece to resolve naturally in about {total_duration_seconds} seconds"] = 0.42
+            intro_map = _scale_prompt_map(_prompt_map(build_weighted_prompts(first_plan)), 0.58)
+            intro_map["soft opening"] = 0.38
+            intro_map["gradual build"] = 0.34
+            intro_map[f"shape the piece to resolve naturally in about {total_duration_seconds} seconds"] = 0.18
 
             log.info(
                 "[LyriaSession] Starting stream | sections=%d total_duration=%ds crossfade=%ds",

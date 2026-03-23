@@ -8,7 +8,12 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .config import DEFAULT_ANALYSIS_MODEL, MAX_ANALYSIS_CHARS, MAX_COMPOSER_PROMPT_CHARS
+from .config import (
+    ALLOW_LITE_ANALYSIS_MODEL,
+    DEFAULT_ANALYSIS_MODEL,
+    MAX_ANALYSIS_CHARS,
+    MAX_COMPOSER_PROMPT_CHARS,
+)
 from .models import DocumentSection, MusicPlan
 
 log = logging.getLogger(__name__)
@@ -117,6 +122,35 @@ def normalize_plan(payload: dict) -> MusicPlan:
 
 
 _NUMBER_RE = re.compile(r"[-+]?\d*\.?\d+")
+_LITERAL_SOUND_RE = re.compile(
+    r"\b(heartbeat|heart beat|stinger|jump\s*scare|siren|scream|gunshot|foley|static\s*sound|"
+    r"wet\s*scratch(?:ing)?|scratching\s*sound|alarm|door\s*slam|monster\s*sound|"
+    r"glitch(?:y)?|crackle|noise\s*burst|harsh\s*noise|distort(?:ed|ion)|static|"
+    r"digital\s*artifacts?)\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _soften_literal_sound_phrasing(text: str) -> str:
+    if not text:
+        return text
+    return _LITERAL_SOUND_RE.sub("smooth low-intensity tonal texture", text)
+
+
+def _sanitize_list_terms(values: list[str]) -> list[str]:
+    out: list[str] = []
+    for value in values:
+        cleaned = _soften_literal_sound_phrasing(value).strip(" ,.-")
+        if cleaned:
+            out.append(cleaned)
+    return out
+
+
+def _resolve_analysis_model(name: str) -> str:
+    # Protect quality by default: lite model can underfit tone-heavy passages.
+    if not ALLOW_LITE_ANALYSIS_MODEL and name.endswith("-lite"):
+        return "gemini-2.5-flash"
+    return name
 
 
 def _to_float(value: Any) -> float:
@@ -147,7 +181,7 @@ def sanitize_payload(payload: dict[str, Any]) -> dict[str, Any]:
     cleaned: dict[str, Any] = dict(payload)
 
     cleaned["composer_prompt"] = _trim_sentence(
-        str(cleaned.get("composer_prompt", "")).strip(),
+        _soften_literal_sound_phrasing(str(cleaned.get("composer_prompt", "")).strip()),
         MAX_COMPOSER_PROMPT_CHARS,
     )
 
@@ -162,6 +196,10 @@ def sanitize_payload(payload: dict[str, Any]) -> dict[str, Any]:
     trunc_list("genre_tags", 3)
     trunc_list("instruments", 4)
 
+    cleaned["mood_tags"] = _sanitize_list_terms(cleaned["mood_tags"])
+    cleaned["genre_tags"] = _sanitize_list_terms(cleaned["genre_tags"])
+    cleaned["instruments"] = _sanitize_list_terms(cleaned["instruments"])
+
     cleaned["bpm"] = clamp(_to_float(cleaned.get("bpm")), 60, 200)
     cleaned["density"] = clamp(_to_float(cleaned.get("density")), 0.0, 1.0)
     cleaned["brightness"] = clamp(_to_float(cleaned.get("brightness")), 0.0, 1.0)
@@ -174,15 +212,24 @@ def sanitize_payload(payload: dict[str, Any]) -> dict[str, Any]:
 def build_analysis_prompt(section: DocumentSection, reading_speed_wpm: int) -> str:
     current_text = section.text[:MAX_ANALYSIS_CHARS]
     return (
-        "You are an expert reading-music composer. "
+        "You are an expert reader-guide music composer. "
+        "Project scope: generate instrumental background music for reading, not standalone showcase music. "
         "Create an instrumental soundtrack plan that matches this section's narrative tone and pacing. "
+        "The music must enhance reading flow while staying supportive and non-distracting. "
+        "If the text is dark, tense, ominous, tragic, uncanny, violent, or unsettling, the plan must reflect that directly. "
+        "Never brighten or soften the emotional tone unless the text explicitly shifts in that direction. "
         "Do not lock to any fixed style, genre, or instrument family unless the text suggests it. "
-        "Do not default to piano, ambient pads, cinematic strings, or soft orchestral music unless the writing itself points there. "
+        "Do not default to uplifting, positive, cozy, piano, ambient pads, cinematic strings, or soft orchestral music unless the writing itself points there. "
         "When the setting, motion, emotional temperature, or implied era changes, let the palette change too. "
         "Take concrete cues from the text: environment, tension, stillness, movement, period feel, and scale. "
         "Primary objective: this must accompany reading comfortably. "
         "Keep it suitable for reading: coherent, non-chaotic, emotionally aligned, and non-intrusive over long listening. "
+        "Avoid foreground hooks that steal attention from reading. "
+        "Do not imitate literal scene sounds or foley (no jump-scare stingers, sirens, screams, gunshot-like hits, alarms, or obvious sound-design effects). "
+        "Avoid crackle, harsh noise bursts, abrasive distortion, and glitch artifact textures. "
+        "Instrumental only, no lyrics or spoken words. "
         "Avoid abrupt transitions, distracting motifs, and sudden loud/intense shifts that break reading focus. "
+        "For guidance: prefer moderate values so the generator can compose naturally while still following tone (usually 1.2 to 3.6). "
         "Avoid reusing the same default answer shape across unrelated passages. "
         "Return a JSON object that matches the provided response schema. "
         f"Reader speed is {reading_speed_wpm} words per minute. "
@@ -202,6 +249,7 @@ async def analyze_section(
     previous_plan: MusicPlan | None = None,
     analysis_model: str = DEFAULT_ANALYSIS_MODEL,
 ) -> MusicPlan:
+    analysis_model = _resolve_analysis_model(analysis_model)
     client = genai.Client(api_key=api_key)
     prompt = build_analysis_prompt(section, reading_speed_wpm)
     if previous_plan is not None:
@@ -226,6 +274,11 @@ async def analyze_section(
     try:
         payload = parse_json_object(response.text or "")
         plan = normalize_plan(payload)
+        log.info(
+            "[Analysis] Section %d | model=%s",
+            section.index,
+            analysis_model,
+        )
         log.info(
             "[Analysis] Section %d | title=%r | composer_prompt=%r",
             section.index, section.title, plan.composer_prompt,

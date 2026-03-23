@@ -8,11 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400;1,600&family=Special+Elite&family=Roboto+Condensed:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400;1,600&family=Special+Elite&family=Roboto+Condensed:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/styles.css" />
-    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/web-app-manifest-192x192.png" />
+    <link rel="manifest" href="/site.webmanifest" />
   </head>
   <body data-page="room">
     <div class="paper-shell room-paper">
@@ -25,9 +28,9 @@
           <span>Vol. I &mdash; No. 01</span>
         </div>
         <div class="masthead-row">
-          <p class="masthead-date">Compose Edition</p>
+          <p class="masthead-date" id="masthead-edition">Studio Edition</p>
           <a id="brand-home" class="masthead-title" href="/">BOOKFM TIMES</a>
-          <p class="masthead-price">Reader&rsquo;s Desk</p>
+          <p class="masthead-price" id="masthead-dateline">Reader&rsquo;s Desk</p>
         </div>
         <div class="section-bar">
           <a class="section-link" href="/">Front Page</a>
@@ -37,6 +40,22 @@
           </button>
         </div>
       </header>
+
+      <!-- News Ticker -->
+      <div class="news-ticker-container">
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          <span class="live-label">LIVE</span>
+        </div>
+        <div class="news-ticker-viewport">
+          <div class="news-ticker-track" id="news-ticker-track">
+            <span class="ticker-item">● REAL-TIME AMBIENT MUSIC GENERATION</span>
+            <span class="ticker-item">● SCROLL-PACED READING GUIDE</span>
+            <span class="ticker-item">● LONG-FORM TEXT SESSIONS</span>
+            <span class="ticker-item">● LIVE BOOKFM TIMES EDITION</span>
+          </div>
+        </div>
+      </div>
 
       <!-- ── Main ───────────────────────────────────────── -->
       <main class="room-main">
@@ -94,6 +113,10 @@
               <p class="panel-sub" style="margin-top:-5px;margin-bottom:10px;color:var(--text-dim)">
                 Required to generate the music. Strictly stored locally in your browser.
               </p>
+              <div class="key-usage-row">
+                <span class="key-usage-chip">Semantic chunking: Always ON</span>
+                <button type="button" id="key-usage-open" class="key-usage-trigger">Why this key?</button>
+              </div>
               <input 
                 type="password" 
                 id="gemini-api-key" 
@@ -135,6 +158,40 @@
             </div>
 
           </form>
+
+          <div id="key-usage-modal" class="key-usage-modal hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="key-usage-title">
+            <div class="key-usage-backdrop" data-close="key-usage-modal"></div>
+            <article class="key-usage-card">
+              <button type="button" id="key-usage-close" class="key-usage-close" aria-label="Close details">×</button>
+              <p class="kicker">Model Transparency</p>
+              <h2 id="key-usage-title">Where your Gemini key is used</h2>
+
+              <section class="key-usage-section">
+                <h3>1. Semantic chunking (always on)</h3>
+                <p>Your text is split into natural reading sections using embeddings, so music transitions happen at meaningful boundaries.</p>
+                <p class="key-usage-meta">Model: gemini-embedding-001 (Google)</p>
+              </section>
+
+              <section class="key-usage-section">
+                <h3>2. Music plan analysis</h3>
+                <p>Each section is analyzed for mood, pacing, and texture before generation.</p>
+                <p class="key-usage-meta">Model: gemini-2.5-flash (default)</p>
+              </section>
+
+              <section class="key-usage-section">
+                <h3>3. Realtime music generation</h3>
+                <p>The app streams section-aware audio live during reading.</p>
+                <p class="key-usage-meta">Model: models/lyria-realtime-exp</p>
+              </section>
+
+              <section class="key-usage-section">
+                <h3>Cost guidance</h3>
+                <p>Most normal reading sessions stay comfortably within Google AI Studio free-tier limits, especially with short-to-medium documents.</p>
+                <p>For exact and up-to-date pricing, check Google&rsquo;s official pricing page.</p>
+                <p class="key-usage-meta"><a href="https://ai.google.dev/pricing" target="_blank" rel="noopener noreferrer">Open Google model pricing</a></p>
+              </section>
+            </article>
+          </div>
         </section>
 
         <!-- READER SECTION -->
@@ -147,6 +204,9 @@
 
           <!-- Article masthead — large newspaper-style title -->
           <div class="reading-masthead" id="reading-masthead">
+            <button id="back-button-inline" class="reader-back-inline" type="button">
+              &#8592; Back to Compose
+            </button>
             <span class="kicker" id="reading-kicker">Now Reading</span>
             <h2 class="reading-display-title" id="reading-display-title">Reading session</h2>
             <div class="reading-byline">
@@ -172,6 +232,84 @@
           <p>Reading Room Desk</p>
           <p>BookFM Times</p>
           <p>Edition 01</p>
+        </div>
+
+        <div class="support-footer" aria-label="Support">
+          <a
+            id="support-fallback"
+            class="support-fallback"
+            href="https://www.buymeacoffee.com/mavish"
+            target="_blank"
+            rel="noopener noreferrer"
+          >Buy me a coffee</a>
+          <script
+            type="text/javascript"
+            src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js"
+            data-name="bmc-button"
+            data-slug="mavish"
+            data-color="#e9e7d3"
+            data-emoji="☕"
+            data-font="Roboto Condensed"
+            data-text="Buy me a coffee"
+            data-outline-color="#000000"
+            data-font-color="#000000"
+            data-coffee-color="#FFDD00"
+          ></script>
+          <script>
+            (function () {
+              var fallback = document.getElementById('support-fallback');
+              var hasEmbed = document.querySelector('.support-footer .bmc-btn');
+              if (fallback && hasEmbed) fallback.remove();
+            })();
+          </script>
+          <style>
+            .support-footer {
+              margin-top: 10px;
+              display: grid;
+              justify-items: center;
+              gap: 0;
+            }
+            .support-footer .support-fallback {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              font-family: var(--tx-ui);
+              font-size: 14px;
+              font-weight: 600;
+              letter-spacing: .02em;
+              color: var(--ink);
+              background-color: var(--np2);
+              border: 1px solid var(--rulM);
+              padding: 8px 12px;
+              text-decoration: none;
+              border-radius: 6px;
+            }
+            .support-footer .bmc-btn-container { display: flex !important; justify-content: center !important; }
+            .support-footer .bmc-btn {
+              background-color: var(--np2) !important;
+              color: var(--ink) !important;
+              border: 1px solid var(--rulM) !important;
+              box-shadow: none !important;
+              font-family: var(--tx-ui) !important;
+              font-size: 14px !important;
+              line-height: 1 !important;
+              padding: 8px 12px !important;
+              height: auto !important;
+              min-height: 0 !important;
+              border-radius: 6px !important;
+            }
+            .support-footer .bmc-btn .bmc-btn-text {
+              font-family: var(--tx-ui) !important;
+              font-weight: 600 !important;
+              letter-spacing: .02em !important;
+            }
+            .support-footer .bmc-btn svg {
+              width: 22px !important;
+              height: 22px !important;
+            }
+            .support-footer .logo-outline { fill: var(--ink) !important; }
+            .support-footer .logo-coffee { fill: #FFDD00 !important; }
+          </style>
         </div>
       </footer>
 

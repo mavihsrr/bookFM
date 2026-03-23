@@ -10,9 +10,7 @@ from .config import DEFAULT_PREFETCH_COUNT, DEFAULT_READING_SPEED_WPM
 class BaseTextRequest(BaseModel):
     text: str = Field(min_length=1)
     reading_speed_wpm: int = DEFAULT_READING_SPEED_WPM
-    semantic: bool = False
-    embed_backend: Literal["openai", "google"] = "openai"
-    embed_model: str | None = None
+    semantic: bool = True
 
 
 class GenerateTextRequest(BaseTextRequest):
