@@ -5,21 +5,19 @@
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
-  /* ── Dark mode ────────────────────────────────────────── */
   const btn = document.getElementById('dark-mode-toggle');
-  if (btn) {
-    const updateLabel = () => {
-      const isDark = document.documentElement.dataset.theme === 'dark';
-      btn.querySelector('.toggle-icon').textContent = isDark ? '○' : '◐';
-    };
+  if (!btn) return;
+  const updateLabel = () => {
+    const isDark = document.documentElement.dataset.theme === 'dark';
+    btn.querySelector('.toggle-icon').textContent = isDark ? '○' : '◐';
+  };
+  updateLabel();
+  btn.addEventListener('click', () => {
+    const isDark = document.documentElement.dataset.theme === 'dark';
+    document.documentElement.dataset.theme = isDark ? '' : 'dark';
+    localStorage.setItem('bookfm-theme', isDark ? 'light' : 'dark');
     updateLabel();
-    btn.addEventListener('click', () => {
-      const isDark = document.documentElement.dataset.theme === 'dark';
-      document.documentElement.dataset.theme = isDark ? '' : 'dark';
-      localStorage.setItem('bookfm-theme', isDark ? 'light' : 'dark');
-      updateLabel();
-    });
-  }
+  });
 });
 
 function initCustomCursor() {
@@ -35,7 +33,7 @@ function initCustomCursor() {
     let isVisible = false;
 
     // Linear interpolation factor for lag (lower = smoother/slower)
-    const factor = 0.28;
+    const factor = 0.15;
 
     const tick = () => {
       cursorX += (mouseX - cursorX) * factor;
@@ -563,7 +561,7 @@ function initHeaderScrollScale() {
       trigger: document.documentElement,
       start: "top top",
       end: "+=200",
-      scrub: 0.35,
+      scrub: 0.5,
       invalidateOnRefresh: true,
     },
   });
@@ -796,73 +794,6 @@ function revealMusicRail(musicRail) {
 }
 
 
-function initNewsTicker() {
-  const container = document.querySelector('.news-ticker-container');
-  const track = document.getElementById('news-ticker-track');
-  
-  if (!container || !track) return;
-  
-  // Clone content for seamless loop
-  const items = track.querySelectorAll('.ticker-item');
-  if (items.length === 0) return;
-  
-  items.forEach(item => {
-    const clone = item.cloneNode(true);
-    track.appendChild(clone);
-  });
-  
-  // Animation state
-  let scrollVelocity = 0;
-  let currentSpeed = 0;
-  const baseSpeed = 92; // pixels per second at base cruise
-  const maxSpeed = 280; // max pixels per second when scrolling fast
-  const lerpFactor = 0.14; // smooth deceleration (lower = smoother)
-  const velocityFactor = 0.7; // how much scroll speed affects ticker (tweak for feel)
-  
-  let lastScrollY = window.scrollY;
-  let trackOffset = 0;
-  const trackWidth = track.scrollWidth / 2; // Half the width (original content)
-  
-  // Listen to scroll for velocity
-  let scrollTimeout;
-  window.addEventListener('scroll', () => {
-    const currentScrollY = window.scrollY;
-    scrollVelocity = currentScrollY - lastScrollY;
-    lastScrollY = currentScrollY;
-    
-    // Reset velocity timeout
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      scrollVelocity = 0;
-    }, 150);
-  }, { passive: true });
-  
-  // Animation loop with GPU-accelerated transform3d
-  function updateTicker() {
-    // Calculate target speed: base + velocity influence
-    const targetSpeed = baseSpeed + (Math.abs(scrollVelocity) * velocityFactor);
-    const cappedSpeed = Math.min(targetSpeed, maxSpeed);
-    
-    // Smooth lerp to target speed
-    currentSpeed += (cappedSpeed - currentSpeed) * lerpFactor;
-    
-    // Move track
-    trackOffset += currentSpeed * (1 / 60); // 60fps frame time
-    
-    // Seamless wrap: when offset exceeds half track width, reset
-    if (trackOffset > trackWidth) {
-      trackOffset = 0;
-    }
-    
-    track.style.transform = `translate3d(-${trackOffset}px, 0, 0)`;
-    
-    requestAnimationFrame(updateTicker);
-  }
-  
-  requestAnimationFrame(updateTicker);
-}
-
-
 function initHomePage() {
   const jumpButtons = Array.from(document.querySelectorAll("[data-jump]"));
   const storySteps = Array.from(document.querySelectorAll(".story-step"));
@@ -965,7 +896,6 @@ function initHomePage() {
 
   initHeaderScrollScale();
   initHomeAnimations();
-  initNewsTicker();
 }
 
 
@@ -1453,7 +1383,6 @@ function initRoomPage() {
   setFreeReadMode(false);
   initHeaderScrollScale();
   initRoomAnimations();
-  initNewsTicker();
 }
 
 function initCustomCursor() {
@@ -1467,7 +1396,7 @@ function initCustomCursor() {
     let cursorX = -100;
     let cursorY = -100;
     let isVisible = false;
-    const factor = 0.28; // Adjust for more/less lag (0.1 = very laggy, 0.3 = tight)
+    const factor = 0.15; // Adjust for more/less lag (0.1 = very laggy, 0.3 = tight)
 
     const updatePosition = (e) => {
       mouseX = e.clientX;
