@@ -5,6 +5,7 @@ import base64
 import inspect
 import logging
 from array import array
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Awaitable, Callable
 
@@ -26,6 +27,14 @@ log = logging.getLogger(__name__)
 
 
 ChunkCallback = Callable[[bytes], Awaitable[None] | None]
+
+
+def _obj_get(obj: object, key: str) -> object | None:
+    if obj is None:
+        return None
+    if isinstance(obj, Mapping):
+        return obj.get(key)
+    return getattr(obj, key, None)
 
 
 def _apply_pcm_gain_s16le(data: bytes, gain: float) -> bytes:
@@ -57,22 +66,27 @@ def _decode_chunk_data(data: object) -> bytes | None:
 def _extract_audio_payloads(message: object) -> list[bytes]:
     payloads: list[bytes] = []
 
-    server_content = getattr(message, "server_content", None)
-    chunks = getattr(server_content, "audio_chunks", None) if server_content else None
+    server_content = _obj_get(message, "server_content")
+    chunks = _obj_get(server_content, "audio_chunks") if server_content else None
     if chunks:
         for chunk in chunks:
-            decoded = _decode_chunk_data(getattr(chunk, "data", None))
+            decoded = _decode_chunk_data(_obj_get(chunk, "data"))
             if decoded:
                 payloads.append(decoded)
 
-    model_turn = getattr(server_content, "model_turn", None) if server_content else None
-    parts = getattr(model_turn, "parts", None) if model_turn else None
+    model_turn = _obj_get(server_content, "model_turn") if server_content else None
+    parts = _obj_get(model_turn, "parts") if model_turn else None
     if parts:
         for part in parts:
-            inline_data = getattr(part, "inline_data", None)
-            decoded = _decode_chunk_data(getattr(inline_data, "data", None)) if inline_data else None
+            inline_data = _obj_get(part, "inline_data")
+            decoded = _decode_chunk_data(_obj_get(inline_data, "data")) if inline_data else None
             if decoded:
                 payloads.append(decoded)
+
+    # Some SDK/runtime combinations may surface audio bytes on the top-level message.
+    direct = _decode_chunk_data(_obj_get(message, "data"))
+    if direct:
+        payloads.append(direct)
 
     return payloads
 
@@ -160,10 +174,20 @@ async def receive_audio_stream(
     handle = output_file.open("wb") if output_file is not None else None
     gain = float(DEFAULT_STREAM_GAIN)
     next_log_at = 256 * 1024
+    no_payload_logs = 0
     try:
         async for message in session.receive():
             payloads = _extract_audio_payloads(message)
             if not payloads:
+                if no_payload_logs < 3:
+                    no_payload_logs += 1
+                    log.info(
+                        "[Lyria Stream] No audio payload in message #%d | type=%s | has_server_content=%s | has_data=%s",
+                        no_payload_logs,
+                        type(message).__name__,
+                        _obj_get(message, "server_content") is not None,
+                        _obj_get(message, "data") is not None,
+                    )
                 continue
 
             for data in payloads:
