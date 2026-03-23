@@ -1363,6 +1363,8 @@ function initRoomPage() {
     event.preventDefault();
     composeNote.textContent = " ";
     try {
+      // Unlock Web Audio in the user gesture path (important on hosted/HTTPS deployments).
+      await livePlayer.ensureContext();
       await beginReadingSession();
     } catch (error) {
       setLoading(false);

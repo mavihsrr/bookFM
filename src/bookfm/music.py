@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import inspect
 import logging
 from array import array
@@ -40,6 +41,40 @@ def _apply_pcm_gain_s16le(data: bytes, gain: float) -> bytes:
             scaled = -32768
         samples[i] = scaled
     return samples.tobytes()
+
+
+def _decode_chunk_data(data: object) -> bytes | None:
+    if isinstance(data, (bytes, bytearray)):
+        return bytes(data)
+    if isinstance(data, str):
+        try:
+            return base64.b64decode(data)
+        except Exception:
+            return None
+    return None
+
+
+def _extract_audio_payloads(message: object) -> list[bytes]:
+    payloads: list[bytes] = []
+
+    server_content = getattr(message, "server_content", None)
+    chunks = getattr(server_content, "audio_chunks", None) if server_content else None
+    if chunks:
+        for chunk in chunks:
+            decoded = _decode_chunk_data(getattr(chunk, "data", None))
+            if decoded:
+                payloads.append(decoded)
+
+    model_turn = getattr(server_content, "model_turn", None) if server_content else None
+    parts = getattr(model_turn, "parts", None) if model_turn else None
+    if parts:
+        for part in parts:
+            inline_data = getattr(part, "inline_data", None)
+            decoded = _decode_chunk_data(getattr(inline_data, "data", None)) if inline_data else None
+            if decoded:
+                payloads.append(decoded)
+
+    return payloads
 
 
 def blend_bpm(story_bpm: int, reading_speed_wpm: int) -> int:
@@ -126,15 +161,11 @@ async def receive_audio_stream(
     gain = float(DEFAULT_STREAM_GAIN)
     try:
         async for message in session.receive():
-            server_content = getattr(message, "server_content", None)
-            chunks = getattr(server_content, "audio_chunks", None) if server_content else None
-            if not chunks:
+            payloads = _extract_audio_payloads(message)
+            if not payloads:
                 continue
 
-            for chunk in chunks:
-                data = getattr(chunk, "data", None)
-                if not data:
-                    continue
+            for data in payloads:
                 if gain < 0.999:
                     data = _apply_pcm_gain_s16le(data, gain)
                 if handle is not None:
