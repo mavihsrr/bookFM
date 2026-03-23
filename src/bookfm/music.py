@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import audioop
 import inspect
 import logging
+from array import array
 from pathlib import Path
 from typing import Awaitable, Callable
 
@@ -25,6 +25,21 @@ log = logging.getLogger(__name__)
 
 
 ChunkCallback = Callable[[bytes], Awaitable[None] | None]
+
+
+def _apply_pcm_gain_s16le(data: bytes, gain: float) -> bytes:
+    if gain >= 0.999:
+        return data
+    samples = array("h")
+    samples.frombytes(data)
+    for i, sample in enumerate(samples):
+        scaled = int(sample * gain)
+        if scaled > 32767:
+            scaled = 32767
+        elif scaled < -32768:
+            scaled = -32768
+        samples[i] = scaled
+    return samples.tobytes()
 
 
 def blend_bpm(story_bpm: int, reading_speed_wpm: int) -> int:
@@ -121,7 +136,7 @@ async def receive_audio_stream(
                 if not data:
                     continue
                 if gain < 0.999:
-                    data = audioop.mul(data, BYTES_PER_SAMPLE, gain)
+                    data = _apply_pcm_gain_s16le(data, gain)
                 if handle is not None:
                     handle.write(data)
                 if on_chunk is not None:
