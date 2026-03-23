@@ -159,6 +159,7 @@ async def receive_audio_stream(
 
     handle = output_file.open("wb") if output_file is not None else None
     gain = float(DEFAULT_STREAM_GAIN)
+    next_log_at = 256 * 1024
     try:
         async for message in session.receive():
             payloads = _extract_audio_payloads(message)
@@ -175,6 +176,11 @@ async def receive_audio_stream(
                     if inspect.isawaitable(result):
                         await result
                 bytes_written += len(data)
+                if bytes_written <= len(data):
+                    log.info("[Lyria Stream] First audio bytes received: %d", len(data))
+                if bytes_written >= next_log_at:
+                    log.info("[Lyria Stream] Bytes streamed so far: %d", bytes_written)
+                    next_log_at += 256 * 1024
 
             if bytes_written >= target_bytes:
                 await session.stop()
@@ -182,6 +188,8 @@ async def receive_audio_stream(
     finally:
         if handle is not None:
             handle.close()
+
+    log.info("[Lyria Stream] Total bytes streamed: %d", bytes_written)
 
     return bytes_written
 

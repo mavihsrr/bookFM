@@ -329,6 +329,20 @@ function pcm16ToAudioBuffer(audioContext, arrayBuffer, channels, sampleRate) {
 }
 
 
+async function normalizeWsAudioFrame(data) {
+  if (data instanceof ArrayBuffer) {
+    return data;
+  }
+  if (ArrayBuffer.isView(data)) {
+    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+  }
+  if (typeof Blob !== "undefined" && data instanceof Blob) {
+    return await data.arrayBuffer();
+  }
+  return null;
+}
+
+
 const livePlayer = new LivePcmPlayer();
 
 
@@ -1257,7 +1271,11 @@ function initRoomPage() {
       socket.addEventListener("message", async (event) => {
         if (typeof event.data !== "string") {
           try {
-            await livePlayer.pushChunk(event.data);
+            const frame = await normalizeWsAudioFrame(event.data);
+            if (!frame || frame.byteLength === 0) {
+              return;
+            }
+            await livePlayer.pushChunk(frame);
             setMusicStatus(musicTitle.textContent || "Reading session", "Streaming now");
           } catch (error) {
             rejectOnce(error);
