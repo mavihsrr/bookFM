@@ -1325,6 +1325,7 @@ body.is-reading .reading-progress-bar {
   overflow: hidden;
   min-width: 0;
   flex: 1;
+  height: 100%;
 }
 
 .news-ticker-track {
@@ -1335,6 +1336,7 @@ body.is-reading .reading-progress-bar {
   flex-wrap: nowrap;
   position: relative;
   z-index: 1;
+  height: 100%;
 }
 
 .live-dot {
@@ -1343,7 +1345,7 @@ body.is-reading .reading-progress-bar {
   height: 6px;
   background-color: var(--red);
   border-radius: 50%;
-  animation: dotBlink 0.72s ease-in-out infinite, dotGlow 1.1s ease-out infinite;
+  animation: dotBlink 0.52s ease-in-out infinite, dotGlow 0.78s ease-out infinite;
   flex-shrink: 0;
 }
 

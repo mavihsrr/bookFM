@@ -795,6 +795,74 @@ function animateReaderOpen(elements) {
 }
 
 
+function initNewsTicker() {
+  const container = document.querySelector('.news-ticker-container');
+  const track = document.getElementById('news-ticker-track');
+  const viewport = document.querySelector('.news-ticker-viewport');
+  
+  if (!container || !track || !viewport) return;
+  
+  // Clone content for seamless loop
+  const items = track.querySelectorAll('.ticker-item');
+  if (items.length === 0) return;
+  
+  items.forEach(item => {
+    const clone = item.cloneNode(true);
+    track.appendChild(clone);
+  });
+  
+  // Animation state
+  let scrollVelocity = 0;
+  let currentSpeed = 0;
+  const baseSpeed = 120; // pixels per second at base cruise
+  const maxSpeed = 320; // max pixels per second when scrolling fast
+  const lerpFactor = 0.18; // smooth deceleration (lower = smoother)
+  const velocityFactor = 0.85; // how much scroll speed affects ticker (tweak for feel)
+  
+  let lastScrollY = window.scrollY;
+  let trackOffset = 0;
+  const trackWidth = track.scrollWidth / 2; // Half the width (original content)
+  
+  // Listen to scroll for velocity
+  let scrollTimeout;
+  window.addEventListener('scroll', () => {
+    const currentScrollY = window.scrollY;
+    scrollVelocity = currentScrollY - lastScrollY;
+    lastScrollY = currentScrollY;
+    
+    // Reset velocity timeout
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      scrollVelocity = 0;
+    }, 150);
+  }, { passive: true });
+  
+  // Animation loop with GPU-accelerated transform3d
+  function updateTicker() {
+    // Calculate target speed: base + velocity influence
+    const targetSpeed = baseSpeed + (Math.abs(scrollVelocity) * velocityFactor);
+    const cappedSpeed = Math.min(targetSpeed, maxSpeed);
+    
+    // Smooth lerp to target speed
+    currentSpeed += (cappedSpeed - currentSpeed) * lerpFactor;
+    
+    // Move track
+    trackOffset += currentSpeed * (1 / 60); // 60fps frame time
+    
+    // Seamless wrap: when offset exceeds half track width, reset
+    if (trackOffset > trackWidth) {
+      trackOffset = 0;
+    }
+    
+    track.style.transform = `translate3d(-${trackOffset}px, 0, 0)`;
+    
+    requestAnimationFrame(updateTicker);
+  }
+  
+  requestAnimationFrame(updateTicker);
+}
+
+
 function revealMusicRail(musicRail) {
   const gsap = ensureGsap();
   if (!gsap) {
@@ -910,6 +978,7 @@ function initHomePage() {
 
   initHeaderScrollScale();
   initHomeAnimations();
+  initNewsTicker();
 }
 
 
@@ -1403,6 +1472,7 @@ function initRoomPage() {
   setFreeReadMode(false);
   initHeaderScrollScale();
   initRoomAnimations();
+  initNewsTicker();
 }
 
 function initCustomCursor() {
