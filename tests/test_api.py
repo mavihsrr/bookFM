@@ -17,6 +17,10 @@ class ApiTests(unittest.TestCase):
         self.assertIn("uploads_available", payload)
         self.assertIn("ui_available", payload)
 
+    def test_health_endpoint_accepts_head(self) -> None:
+        response = self.client.head("/v1/health")
+        self.assertEqual(response.status_code, 200)
+
     def test_root_serves_ui(self) -> None:
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)

@@ -115,7 +115,7 @@ app.add_middleware(
 )
 
 
-@app.get("/v1/health")
+@app.api_route("/v1/health", methods=["GET", "HEAD"])
 async def health() -> dict:
     return {
         "ok": True,
