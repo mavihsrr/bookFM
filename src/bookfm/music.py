@@ -64,31 +64,38 @@ def _decode_chunk_data(data: object) -> bytes | None:
 
 
 def _extract_audio_payloads(message: object) -> list[bytes]:
-    payloads: list[bytes] = []
-
     server_content = _obj_get(message, "server_content")
+    
+    # 1. Try audio_chunks first (standard for audio responses)
     chunks = _obj_get(server_content, "audio_chunks") if server_content else None
     if chunks:
+        payloads = []
         for chunk in chunks:
             decoded = _decode_chunk_data(_obj_get(chunk, "data"))
             if decoded:
                 payloads.append(decoded)
+        if payloads:
+            return payloads
 
+    # 2. Try model_turn parts (standard for function calls or generic responses)
     model_turn = _obj_get(server_content, "model_turn") if server_content else None
     parts = _obj_get(model_turn, "parts") if model_turn else None
     if parts:
+        payloads = []
         for part in parts:
             inline_data = _obj_get(part, "inline_data")
             decoded = _decode_chunk_data(_obj_get(inline_data, "data")) if inline_data else None
             if decoded:
                 payloads.append(decoded)
+        if payloads:
+            return payloads
 
-    # Some SDK/runtime combinations may surface audio bytes on the top-level message.
+    # 3. Try direct message.data (fallback for certain SDK implementations)
     direct = _decode_chunk_data(_obj_get(message, "data"))
     if direct:
-        payloads.append(direct)
+        return [direct]
 
-    return payloads
+    return []
 
 
 def blend_bpm(story_bpm: int, reading_speed_wpm: int) -> int:
