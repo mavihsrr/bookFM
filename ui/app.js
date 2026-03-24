@@ -33,7 +33,7 @@ function initCustomCursor() {
     let isVisible = false;
 
     // Linear interpolation factor for lag (lower = smoother/slower)
-    const factor = 0.15;
+    const factor = 0.24;
 
     const tick = () => {
       cursorX += (mouseX - cursorX) * factor;
@@ -995,6 +995,7 @@ function initRoomPage() {
   // compose-stage is not hidden/shown as a whole – we toggle reader-view
   const composeStage     = document.querySelector(".compose-stage");
   const readerView       = document.getElementById("reader-view");
+  const readerTopbar     = document.querySelector(".reader-topbar");
   const readerArticle    = document.getElementById("reader-article");
   const readerTitle      = document.getElementById("reader-title");
   const readerMeta       = document.getElementById("reader-meta");
@@ -1115,8 +1116,33 @@ function initRoomPage() {
   const showReader = (visible) => {
     if (composeStage) composeStage.classList.toggle("hidden", visible);
     readerView.classList.toggle("hidden", !visible);
+    if (readerTopbar) {
+      readerTopbar.classList.toggle("hidden", !visible);
+      readerTopbar.setAttribute("aria-hidden", visible ? "false" : "true");
+    }
     document.body.classList.toggle("is-reading", visible);
+
+    if (!visible) {
+      const gsap = ensureGsap();
+      if (gsap) {
+        if (readerTopbar) gsap.killTweensOf(readerTopbar);
+        if (readerArticle) gsap.killTweensOf(readerArticle);
+      }
+      if (readerTopbar) {
+        readerTopbar.style.removeProperty("transform");
+        readerTopbar.style.removeProperty("opacity");
+      }
+      if (readerArticle) {
+        readerArticle.style.removeProperty("transform");
+        readerArticle.style.removeProperty("opacity");
+      }
+    }
+
     if (visible) {
+      if (readerTopbar) {
+        readerTopbar.style.removeProperty("transform");
+        readerTopbar.style.removeProperty("opacity");
+      }
       window.scrollTo({ top: 0, behavior: "instant" });
     }
   };
@@ -1214,6 +1240,7 @@ function initRoomPage() {
   const renderReader = (documentPayload) => {
     resetReaderProgress();
     setFreeReadMode(false);
+    setBlurMode(state.blurMode);
     const sections = documentPayload.sections || [];
     const title = documentPayload.title || "Reading session";
 
@@ -1470,6 +1497,7 @@ function initRoomPage() {
   hideMusicRail();
   showReader(false);
   setFreeReadMode(false);
+  setBlurMode(state.blurMode);
   initHeaderScrollScale();
   initRoomAnimations();
   initNewsTicker();

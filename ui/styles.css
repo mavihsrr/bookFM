@@ -995,6 +995,7 @@ body.is-reading .paper-shell {
 
 body.is-reading .reader-topbar {
   transform: translateY(0);
+  opacity: 1;
   pointer-events: all;
   transition: transform .38s cubic-bezier(.4,0,.2,1);
 }
@@ -1019,7 +1020,7 @@ body.is-reading .reader-topbar {
 }
 
 .reader-controls {
-  display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
 }
 .reader-meta {
   font-family: var(--tx-mono);
@@ -1032,11 +1033,16 @@ body.is-reading .reader-topbar {
 }
 .reader-back:hover { color: var(--red); }
 .reader-mode-toggle {
-  border: 1px solid var(--rulM); background: transparent;
-  color: var(--ink3); height: 30px; padding: 0 10px;
+  border: 1px solid var(--rulB);
+  background: color-mix(in srgb, var(--np2) 68%, transparent);
+  color: var(--ink);
+  height: 30px;
+  padding: 0 10px;
+  white-space: nowrap;
   font-family: var(--tx-mono);
   font-size: .63rem; letter-spacing: .1em; text-transform: uppercase;
-  cursor: pointer; transition: background var(--transition), color var(--transition);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
 .reader-mode-toggle:hover { background: var(--ink); color: var(--np); }
 .reader-topbar-copy h2 {
@@ -1152,9 +1158,9 @@ body.is-reading .reading-progress-bar {
   color: var(--ink) !important; filter: blur(0);
   border-left-color: var(--red);
 }
-.reader-paragraph.is-near { color: rgba(12,12,10,.68); filter: blur(.08px); }
-.reader-paragraph.is-past { color: rgba(12,12,10,.38); filter: blur(.1px); }
-.reader-paragraph.is-future { color: rgba(12,12,10,.28); filter: blur(.6px); }
+.reader-paragraph.is-near { color: rgba(12,12,10,.68); filter: blur(.18px); }
+.reader-paragraph.is-past { color: rgba(12,12,10,.38); filter: blur(.34px); }
+.reader-paragraph.is-future { color: rgba(12,12,10,.28); filter: blur(.95px); }
 
 [data-theme="dark"] .reader-paragraph.is-current { color: var(--ink) !important; }
 [data-theme="dark"] .reader-paragraph.is-near { color: rgba(240,232,212,.62); }
@@ -1166,6 +1172,34 @@ body.is-reading .reading-progress-bar {
   border-left-color: transparent !important;
 }
 [data-theme="dark"] .reader-article.is-free-read .reader-paragraph { color: rgba(240,232,212,.78) !important; }
+
+/* Explicit blur-off mode override so the Blur toggle always has effect. */
+.reader-article.no-blur-mode .reader-paragraph,
+.reader-article.no-blur-mode .reader-paragraph.is-current,
+.reader-article.no-blur-mode .reader-paragraph.is-near,
+.reader-article.no-blur-mode .reader-paragraph.is-past,
+.reader-article.no-blur-mode .reader-paragraph.is-future {
+  filter: blur(0) !important;
+}
+
+.reader-article.no-blur-mode .reader-paragraph {
+  color: rgba(12,12,10,.78) !important;
+  border-left-color: transparent !important;
+}
+
+/* Preserve the active red guide marker even when blur is disabled. */
+.reader-article.no-blur-mode:not(.is-free-read) .reader-paragraph.is-current {
+  color: var(--ink) !important;
+  border-left-color: var(--red) !important;
+}
+
+[data-theme="dark"] .reader-article.no-blur-mode .reader-paragraph {
+  color: rgba(240,232,212,.78) !important;
+}
+
+[data-theme="dark"] .reader-article.no-blur-mode:not(.is-free-read) .reader-paragraph.is-current {
+  color: var(--ink) !important;
+}
 
 /* First paragraph is the lede — slightly larger */
 .reader-article .reader-paragraph:first-child {
@@ -1410,6 +1444,8 @@ body.is-reading .reading-progress-bar {
   .section-bar { flex-wrap: wrap; }
   .reader-topbar { grid-template-columns: 1fr auto; padding: 0 14px; }
   .reader-topbar-copy { display: none; }
+  .reader-meta { display: none; }
+  .reader-controls { gap: 8px; }
   .reader-back-inline {
     width: 100%;
     justify-content: flex-start;
@@ -1454,6 +1490,4 @@ body.is-reading .reading-progress-bar {
 }
 
 .reader-article > .reader-paragraph:first-child::first-letter { float: left; font-size: 4rem; line-height: 1; padding-right: 8px; font-family: var(--tx-head); font-weight: 900; }
-
-.reader-article.no-blur-mode .reader-paragraph { filter: blur(0) !important; }
 
