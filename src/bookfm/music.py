@@ -42,8 +42,8 @@ def _apply_pcm_gain_s16le(data: bytes, gain: float) -> bytes:
         return data
     samples = array("h")
     samples.frombytes(data)
-    for i, sample in enumerate(samples):
-        scaled = int(sample * gain)
+    for i in range(len(samples)):
+        scaled = round(samples[i] * gain)
         if scaled > 32767:
             scaled = 32767
         elif scaled < -32768:
@@ -145,8 +145,10 @@ def build_music_config(plan: MusicPlan, reading_speed_wpm: int) -> types.LiveMus
     bpm = max(60, min(200, blend_bpm(plan.bpm, reading_speed_wpm)))
     density = min(plan.density, 0.58)
     brightness = min(plan.brightness, 0.52)
-    guidance = max(1.0, min(plan.guidance, 3.6))
-    temperature = min(plan.temperature, 1.35)
+    # Lock guidance to model default 4.0 and temperature to a flat 1.0 
+    # to structurally prevent audio mode collapse and "cricket" artifacts.
+    guidance = 4.0
+    temperature = 1.0
     log.info(
         "[Lyria Config] bpm=%s density=%.3f brightness=%.3f guidance=%.3f temperature=%.3f",
         bpm, density, brightness, guidance, temperature,

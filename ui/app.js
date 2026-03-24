@@ -127,10 +127,10 @@ class LivePcmPlayer {
     this.masterGain = null;
     this.started = false;
     this.nextPlayTime = 0;
-    // Keep a slightly larger jitter buffer to absorb websocket/main-thread hiccups.
-    this.minBufferSeconds = 2.0;
-    this.resumeBufferSeconds = 1.15;
-    this.targetChunkSeconds = 0.36;
+    // Buffer minimum increased to 3.5s to comfortably fit the 2.0s Lyria output chunks.
+    this.minBufferSeconds = 3.5;
+    this.resumeBufferSeconds = 2.5;
+    this.targetChunkSeconds = 2.0; // Perfect mapping to Lyria's 2.0s chunks prevents node spam
     this.fadeInSeconds = 0.8;
     this.fadeOutSeconds = 1.2;
     this.pendingChunks = [];
@@ -150,7 +150,11 @@ class LivePcmPlayer {
       const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
       this.audioContext = new AudioContextCtor({ sampleRate: this.sampleRate });
       this.masterGain = this.audioContext.createGain();
+      
+      // Control volume server-side mostly, but keep it clean here
       this.masterGain.gain.value = 1;
+
+      // Connect straight to speakers, no compressor to avoid pumping on volume changes
       this.masterGain.connect(this.audioContext.destination);
     }
     // Only resume if we are NOT in a user-initiated pause.
