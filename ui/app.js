@@ -292,15 +292,15 @@ class LivePcmPlayer {
 
     while (this.started) {
       const alignedPendingBytes = this.pendingBytes - (this.pendingBytes % frameBytes);
-      if (!(alignedPendingBytes >= chunkBytes || (force && alignedPendingBytes > 0))) {
-        break;
+      if (alignedPendingBytes === 0) {
+        break; // Await more complete frames.
       }
 
-      const bytesToSchedule = force ? alignedPendingBytes : chunkBytes;
+      // Eagerly consume all available bytes up to a sane max limit per node 
+      // instead of rigidly waiting for static boundaries that strand bytes.
+      const bytesToSchedule = Math.min(alignedPendingBytes, chunkBytes);
+      
       this.scheduleBuffer(this.consumePendingBytes(bytesToSchedule));
-      if (force) {
-        break;
-      }
     }
   }
 

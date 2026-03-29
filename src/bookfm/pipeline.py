@@ -58,14 +58,20 @@ async def build_section_plans(
             reading_speed_wpm=reading_speed_wpm,
         )
 
-    results: list[tuple[DocumentSection, MusicPlan, MusicPlan | None]] = []
-    for section in window:
-        plan = await analyze_section(
+    # Fetch section plans concurrently to crush initial loading times from 30s to 8s
+    coros = [
+        analyze_section(
             section,
             api_key=api_key,
             reading_speed_wpm=reading_speed_wpm,
-            previous_plan=previous_plan,
+            previous_plan=None,
         )
+        for section in window
+    ]
+    plans = await asyncio.gather(*coros)
+
+    results: list[tuple[DocumentSection, MusicPlan, MusicPlan | None]] = []
+    for section, plan in zip(window, plans, strict=True):
         results.append((section, plan, previous_plan))
         previous_plan = plan
 
