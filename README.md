@@ -40,7 +40,7 @@ OPENAI_API_KEY=your_openai_key_here # Optional: For OpenAI embedding backend
 Start the local server (FastAPI):
 
 ```bash
-PYTHONPATH=src python -m bookfm.api
+bookfm-api
 ```
 
 - **Web UI:** `http://localhost:8000/`
@@ -52,17 +52,17 @@ You can also test the engine directly from the command line:
 
 **Inspect a short text:**
 ```bash
-PYTHONPATH=src python -m bookfm.cli inspect --text "Chapter 1\n\nThe rain fell softly over the city."
+bookfm inspect --text "Chapter 1\n\nThe rain fell softly over the city."
 ```
 
 **Analyze a full document:**
 ```bash
-PYTHONPATH=src python -m bookfm.cli analyze --text-file samples/sample_book.txt
+bookfm analyze --text-file samples/sample_book.txt
 ```
 
 **Generate a music snippet for a specific document section:**
 ```bash
-PYTHONPATH=src python -m bookfm.cli generate --text-file samples/sample_book.txt --section-index 0
+bookfm generate --text-file samples/sample_book.txt --section-index 0
 ```
 
 ## 🏗️ Architecture & Tech Stack
